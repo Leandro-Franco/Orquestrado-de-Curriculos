@@ -1,4 +1,4 @@
-# Gerador Inteligente de Currículos
+# Orquestrado-de-Curriculos
 
 Sistema de gestão de conhecimento profissional que gera currículos direcionados a vagas, **sem inventar fatos**: a LLM apenas propõe; você aprova; só fatos aprovados entram no currículo.
 
@@ -90,4 +90,4 @@ cd frontend && npm install && npm run dev
 - Provedor fake gera propostas simplificadas (marca campos "(revisar)") — serve para exercitar o fluxo, não para qualidade de extração.
 - Fontes do PDF usam pilha de sistema com fallback; para fontes 100% idênticas entre ambientes, adicione arquivos de fonte em `backend-core/src/main/resources/fonts/` e declare `@font-face` no template.
 - OCR de documentos escaneados e DOCX ficam fora do MVP (seção 14).
-# Orquestrado-de-Curriculos
+
