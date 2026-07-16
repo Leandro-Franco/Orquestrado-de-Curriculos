@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: backend-core
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/curriculos}
+    username: ${SPRING_DATASOURCE_USERNAME:curriculos}
+    password: ${SPRING_DATASOURCE_PASSWORD:curriculos}
+  jpa:
+    hibernate:
+      # O Flyway é o dono do esquema; a validação do Hibernate é redundante e
+      # frágil (reclama de TEXT/CHAR vs varchar mesmo com o esquema correto).
+      ddl-auto: none
+    open-in-view: false
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+
+app:
+  ai-service-url: ${AI_SERVICE_URL:http://localhost:8000}
+  storage-dir: ${STORAGE_DIR:./storage}
+  cors-allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}
+
+server:
+  port: 8080

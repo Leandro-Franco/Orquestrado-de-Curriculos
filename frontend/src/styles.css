@@ -1,0 +1,178 @@
+/* Temas: as cores vivem em variáveis; o tema escuro só as redefine.
+   O atributo data-theme é controlado pelo App (localStorage + preferência do sistema). */
+:root {
+  --tinta: #1c2733;
+  --tinta-suave: #4a5a6a;
+  --fundo: #f4f6f8;
+  --cartao: #ffffff;
+  --campo: #ffffff;
+  --borda: #d8dee5;
+  --acento: #1f6feb;
+  --ok: #1a7f37;
+  --alerta: #b35900;
+  --erro: #b42318;
+  --nav-fundo: #1c2733;
+  --nav-texto: #cdd6df;
+  --realce-diff: #fff3c2;
+  --alerta-fundo: #fdeecd;
+  --selo-alta-fundo: #d3f2dd;
+  --selo-media-fundo: #e8f0d8;
+  --selo-parcial-fundo: #fdeecd;
+  --selo-ausente-fundo: #fbdcd8;
+  --selo-obrigatorio-fundo: #dbe9ff;
+}
+
+:root[data-theme="dark"] {
+  --tinta: #e4e9ee;
+  --tinta-suave: #9aa7b4;
+  --fundo: #10151b;
+  --cartao: #1a222c;
+  --campo: #10151b;
+  --borda: #2c3742;
+  --acento: #3b82f6;
+  --ok: #4ade80;
+  --alerta: #fbbf24;
+  --erro: #f87171;
+  --nav-fundo: #0b0f14;
+  --nav-texto: #9aa7b4;
+  --realce-diff: #4a3f14;
+  --alerta-fundo: #3a2e12;
+  --selo-alta-fundo: #14351f;
+  --selo-media-fundo: #26330f;
+  --selo-parcial-fundo: #3a2e12;
+  --selo-ausente-fundo: #3d1512;
+  --selo-obrigatorio-fundo: #14294a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  background: var(--fundo);
+  color: var(--tinta);
+  font-size: 15px;
+}
+
+.layout { display: flex; min-height: 100vh; }
+
+nav.menu {
+  width: 220px;
+  background: var(--nav-fundo);
+  color: #fff;
+  padding: 16px 0;
+  flex-shrink: 0;
+}
+nav.menu h1 { font-size: 15px; padding: 0 16px 12px; margin: 0; border-bottom: 1px solid #ffffff33; color: #fff; }
+nav.menu a {
+  display: block;
+  color: var(--nav-texto);
+  text-decoration: none;
+  padding: 10px 16px;
+}
+nav.menu a.ativo, nav.menu a:hover { background: #ffffff1a; color: #fff; }
+
+button.tema {
+  background: transparent;
+  border: 1px solid #ffffff44;
+  color: var(--nav-texto);
+  margin: 12px 16px 0;
+  width: calc(100% - 32px);
+}
+button.tema:hover { color: #fff; border-color: #ffffff88; }
+
+main.conteudo { flex: 1; padding: 24px; max-width: 1100px; }
+
+h2 { margin-top: 0; }
+h3 { margin: 18px 0 8px; }
+
+a { color: var(--acento); }
+
+.cartao {
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--borda); vertical-align: top; }
+th { font-size: 13px; text-transform: uppercase; color: var(--tinta-suave); }
+
+label { display: block; font-size: 13px; color: var(--tinta-suave); margin: 8px 0 2px; }
+input, textarea, select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+  font: inherit;
+  background: var(--campo);
+  color: var(--tinta);
+}
+textarea { min-height: 110px; }
+
+button {
+  background: var(--acento);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font: inherit;
+  cursor: pointer;
+  margin-top: 10px;
+}
+button.secundario { background: var(--cartao); color: var(--tinta); border: 1px solid var(--borda); }
+button.perigo { background: var(--erro); color: #fff; }
+button:disabled { opacity: 0.6; cursor: wait; }
+button + button { margin-left: 8px; }
+
+.selo {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  background: var(--borda);
+  color: var(--tinta);
+}
+.selo.ALTA { background: var(--selo-alta-fundo); color: var(--ok); }
+.selo.MEDIA { background: var(--selo-media-fundo); color: var(--ok); }
+.selo.PARCIAL { background: var(--selo-parcial-fundo); color: var(--alerta); }
+.selo.AUSENTE { background: var(--selo-ausente-fundo); color: var(--erro); }
+.selo.INCONCLUSIVA { background: var(--borda); color: var(--tinta-suave); }
+.selo.OBRIGATORIO { background: var(--selo-obrigatorio-fundo); color: var(--acento); }
+
+.diff { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; }
+.diff .coluna { background: var(--fundo); border-radius: 6px; padding: 8px; }
+.diff .alterado { background: var(--realce-diff); }
+.diff dt { font-weight: 600; color: var(--tinta-suave); margin-top: 6px; }
+.diff dd { margin: 0; }
+
+.alerta-validacao {
+  background: var(--alerta-fundo);
+  border-left: 3px solid var(--alerta);
+  padding: 6px 10px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.mensagem-erro { color: var(--erro); margin-top: 8px; }
+.mensagem-ok { color: var(--ok); margin-top: 8px; }
+
+iframe.preview {
+  width: 100%;
+  height: 75vh;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  /* o currículo é um documento impresso: permanece branco nos dois temas,
+     igual ao PDF (ADR-001) */
+  background: #fff;
+}
+
+@media (max-width: 760px) {
+  .layout { flex-direction: column; }
+  nav.menu { width: 100%; display: flex; flex-wrap: wrap; }
+  nav.menu h1 { width: 100%; border: none; }
+  button.tema { width: auto; }
+  .diff { grid-template-columns: 1fr; }
+}
