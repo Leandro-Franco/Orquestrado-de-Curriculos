@@ -60,6 +60,140 @@ mvn spring-boot:run
 cd frontend && npm install && npm run dev
 ```
 
+## Iniciando o banco e populando a base via API (sem o frontend)
+
+### 1. Suba o banco (e quem cria o esquema)
+
+```bash
+# Apenas o PostgreSQL (fica em localhost:5433 no host):
+sudo docker compose up -d postgres
+
+# O esquema (tabelas) é criado pelo Flyway na subida do backend — então para
+# usar a API suba também o serviço de IA e o backend:
+sudo docker compose up -d postgres ai-service backend-core
+```
+
+Confira se está tudo de pé:
+
+```bash
+curl http://localhost:8080/api/perfil      # backend + banco OK se retornar JSON
+curl http://localhost:8000/health          # serviço de IA OK
+```
+
+Para inspecionar o banco diretamente: `psql -h localhost -p 5433 -U curriculos` (senha `curriculos`).
+
+### 2. Preencha o perfil
+
+```bash
+curl -X PUT http://localhost:8080/api/perfil \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nomeCompleto": "Fulano da Silva",
+    "email": "fulano@exemplo.com",
+    "telefone": "(00) 90000-0000",
+    "localizacao": "Cidade-UF",
+    "tituloProfissional": "Desenvolvedor Backend",
+    "objetivo": "Busco oportunidade como desenvolvedor backend."
+  }'
+```
+
+### 3. Importe um currículo direto pela API
+
+**Opção A — arquivo (.pdf, .txt, .md):** o documento é armazenado como evidência,
+indexado no pgvector e a LLM gera **propostas pendentes** (nada entra na base oficial ainda):
+
+```bash
+curl -X POST http://localhost:8080/api/documentos/arquivo \
+  -F "arquivo=@/caminho/para/curriculo.pdf" \
+  -F "titulo=Currículo 2026"
+# → {"documentoId": 1, "propostasGeradas": 8}
+```
+
+**Opção B — texto colado:**
+
+```bash
+curl -X POST http://localhost:8080/api/documentos/texto \
+  -H "Content-Type: application/json" \
+  -d '{"titulo": "Anotações de carreira", "conteudo": "Trabalho com Java e Spring Boot desde 2020..."}'
+```
+
+### 4. Revise e aprove as propostas (o passo humano obrigatório)
+
+```bash
+# Listar propostas pendentes:
+curl http://localhost:8080/api/propostas?status=PENDENTE
+
+# Aprovar (vira fato oficial + evidência vinculada ao documento):
+curl -X POST http://localhost:8080/api/propostas/1/aprovar
+
+# Rejeitar:
+curl -X POST http://localhost:8080/api/propostas/2/rejeitar \
+  -H "Content-Type: application/json" -d '{"motivo": "Informação desatualizada"}'
+```
+
+> Com `AI_PROVIDER=fake` a extração é simplista (habilidades reconhecidas + esboço de
+> experiência marcado com "(revisar)"). Para extração de verdade, configure o provedor
+> `anthropic` no `.env`.
+
+### 5. Ou cadastre fatos aprovados diretamente (sem passar por proposta)
+
+Criação manual é o caminho oficial para dados que você mesmo digita:
+
+```bash
+curl -X POST http://localhost:8080/api/fatos \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tipo": "EXPERIENCIA",
+    "payload": {
+      "cargo": "Desenvolvedor Backend Jr",
+      "empresa": "Empresa X",
+      "inicio": "02/2025",
+      "fim": "",
+      "descricao": "APIs REST com Spring Boot; integração com Keycloak."
+    }
+  }'
+```
+
+Tipos e campos obrigatórios (validados pelo backend, sem consumir IA):
+
+| tipo | campos obrigatórios do payload |
+|---|---|
+| `EXPERIENCIA` | `cargo`, `empresa`, `inicio` |
+| `FORMACAO` | `curso`, `instituicao` |
+| `CURSO` / `CERTIFICACAO` | `nome` |
+| `PROJETO` | `nome`, `descricao` |
+| `HABILIDADE` | `nome` |
+| `IDIOMA` | `idioma`, `nivel` |
+| `LINK` | `rotulo`, `url` |
+
+Campos extras (ex.: `descricao`, `tecnologias`, `nivel`) são aceitos e preservados.
+
+```bash
+# Conferir a base oficial:
+curl http://localhost:8080/api/fatos
+```
+
+### 6. Do cadastro ao PDF, tudo por API
+
+```bash
+# Cadastrar e analisar uma vaga:
+curl -X POST http://localhost:8080/api/vagas \
+  -H "Content-Type: application/json" \
+  -d '{"titulo": "", "empresa": "", "descricao": "Vaga para dev backend Java, Spring Boot, PostgreSQL, Docker. Inglês desejável."}'
+curl -X POST http://localhost:8080/api/vagas/1/analisar
+curl http://localhost:8080/api/vagas/1/requisitos        # compatibilidade por requisito
+
+# Gerar o currículo direcionado e exportar o PDF:
+curl -X POST http://localhost:8080/api/curriculos \
+  -H "Content-Type: application/json" \
+  -d '{"vagaId": 1, "titulo": "Currículo — Vaga Backend", "template": "classico"}'
+curl http://localhost:8080/api/curriculos/1/preview       # HTML (o mesmo do PDF)
+curl -o curriculo.pdf http://localhost:8080/api/curriculos/1/pdf
+
+# Métricas de IA da sessão:
+curl http://localhost:8080/api/metricas/ia
+```
+
 ## Fluxo de uso
 
 1. **Perfil** — preencha seus dados de contato e objetivo.

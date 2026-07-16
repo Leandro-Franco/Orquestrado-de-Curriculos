@@ -1,0 +1,34 @@
+# --- Build e dependências ---
+target/
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.venv/
+
+# --- Segredos e configuração local (NUNCA versionar) ---
+.env
+.env.*
+!.env.example
+
+# --- Dados pessoais e conteúdo do usuário (NUNCA versionar) ---
+# Documentos importados pela aplicação (evidências: currículos, certificados)
+storage/
+# Currículos, certificados e documentos pessoais copiados para dentro do repositório
+*.pdf
+*.docx
+*.doc
+# Dumps e backups de banco (contêm o perfil e os fatos pessoais)
+*.dump
+*.backup
+dump.sql
+pgdata/
+# Scripts locais de carga com dados pessoais
+povoar_base*.py
+seed-local*
+
+# --- IDE / SO ---
+.idea/
+.vscode/
+*.iml
+.DS_Store

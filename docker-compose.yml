@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-curriculos}
+      POSTGRES_USER: ${POSTGRES_USER:-curriculos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-curriculos}
+    ports:
+      # 5433 no host para não conflitar com um PostgreSQL local na 5432;
+      # dentro da rede do compose os serviços continuam usando postgres:5432.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-curriculos}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ai-service:
+    build: ./ai-service
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-curriculos}:${POSTGRES_PASSWORD:-curriculos}@postgres:5432/${POSTGRES_DB:-curriculos}
+      AI_PROVIDER: ${AI_PROVIDER:-fake}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AI_MODEL_ECONOMICO: ${AI_MODEL_ECONOMICO:-claude-haiku-4-5}
+      AI_MODEL_INTERMEDIARIO: ${AI_MODEL_INTERMEDIARIO:-claude-sonnet-5}
+      AI_MODEL_AVANCADO: ${AI_MODEL_AVANCADO:-claude-opus-4-8}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend-core:
+    build: ./backend-core
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-curriculos}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-curriculos}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-curriculos}
+      AI_SERVICE_URL: http://ai-service:8000
+      STORAGE_DIR: /data/storage
+    ports:
+      - "8080:8080"
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend-core
+
+volumes:
+  pgdata:
+  storage:

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="${perfil.nomeCompleto} ?: 'Currículo'">Currículo</title>
+    <style>
+        /* Template "clássico", no estilo do currículo de referência do usuário:
+           nome em azul com linha fina, seções em azul maiúsculo, contatos com "|".
+           Mesma origem visual para preview e PDF (ADR-001); sem recursos externos. */
+        @page {
+            size: A4;
+            margin: 18mm 16mm;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "Carlito", "Calibri", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            color: #1c2733;
+            font-size: 10.5pt;
+            line-height: 1.45;
+            margin: 0;
+        }
+
+        header { margin-bottom: 14px; }
+
+        h1 {
+            font-size: 22pt;
+            font-weight: 400;
+            color: #2e74b5;
+            margin: 0 0 2px;
+            border-bottom: 1.5px solid #5b9bd5;
+            padding-bottom: 4px;
+        }
+
+        .titulo-profissional {
+            font-size: 11.5pt;
+            color: #3a4a5a;
+            margin: 8px 0 4px;
+        }
+
+        .contato {
+            font-size: 9.5pt;
+            color: #1c2733;
+            margin: 6px 0 0;
+        }
+
+        .contato span + span::before { content: " | "; color: #7a8a9a; }
+
+        section {
+            margin-bottom: 12px;
+            break-inside: avoid; /* bloco indivisível: seção não quebra no meio */
+        }
+
+        h2 {
+            font-size: 11.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #2e74b5;
+            letter-spacing: 0.4px;
+            margin: 14px 0 6px;
+            break-after: avoid; /* título nunca fica isolado no fim da página */
+        }
+
+        p { margin: 0 0 4px; }
+    </style>
+</head>
+<body>
+<header>
+    <h1 th:text="${perfil.nomeCompleto} ?: 'Nome não informado'">Nome</h1>
+    <p class="titulo-profissional" th:if="${tituloProfissional}" th:text="${tituloProfissional}">Título</p>
+    <p class="contato">
+        <span th:if="${perfil.email}" th:text="${perfil.email}">email</span>
+        <span th:if="${perfil.telefone}" th:text="${perfil.telefone}">telefone</span>
+        <span th:if="${perfil.localizacao}" th:text="${perfil.localizacao}">local</span>
+    </p>
+    <p class="contato" th:if="${!links.isEmpty()}">
+        <span th:each="link : ${links}" th:text="${link}">link</span>
+    </p>
+</header>
+
+<section th:each="secao : ${secoes}">
+    <h2 th:text="${secao.titulo}">Seção</h2>
+    <p th:each="linha : ${secao.linhas}" th:text="${linha}">linha</p>
+</section>
+</body>
+</html>
