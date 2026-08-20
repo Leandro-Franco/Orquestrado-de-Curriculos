@@ -51,6 +51,31 @@ Em `frontend/src/`:
 - Frontend: `npm install` + `tsc --noEmit` — **OK**.
 - Teste de ponta a ponta: requer `docker compose up --build` (ver README).
 
+## Etapa 6 — Multiprovedor, chat contextual e testes
+
+- **ADR-004**: provedores configuráveis pela interface (Anthropic, OpenAI, Grok,
+  Ollama/Llama e APIs OpenAI-compatible) com chave apenas no backend (tabela
+  `configuracao_ia`, migração V2, cabeçalhos internos `X-AI-*`); chat fixo
+  somente-leitura com contexto da tela (operação `conversar` no harness).
+- **Testes**: unitários do backend (18, JUnit+Mockito), pytest do serviço de IA
+  (harness/API/RAG com provedor fake) e E2E autolimpante (`scripts/teste_e2e.py`)
+  que cobre a PoC de PDF da seção 12. Migração V3 ajustou FKs para remoção limpa
+  e os controladores ganharam DELETE de documento, vaga e currículo.
+- Rodar: `make test` (ver README).
+
+## Etapa 7 — Avaliação do Spring AI e contratos tipados
+
+- **ADR-005**: o Spring AI foi avaliado e **não** adotado como orquestrador (duplicaria o
+  harness Python ou reverteria a seção 17). Adotou-se o princípio que ele defende no lado
+  Java: respostas de IA tipadas.
+- `servico/ia/ContratosIa.java` — records que espelham `schemas.py`, com Jackson em
+  snake_case e listas nunca nulas. `AiClient.executar(op, entrada, Contrato.class)` devolve
+  o objeto tipado; o envelope `usage` também virou record.
+- Removidos todos os `@SuppressWarnings("unchecked")` do caminho de IA
+  (`AiClient`, `DocumentoService`, `VagaService`, `CurriculoService`, `ChatController`).
+- `scripts/verificar_contratos.py` — guardião que falha se `schemas.py` e `ContratosIa.java`
+  divergirem; entra em `make test`.
+
 ## Sugestões de estudo (ordem de leitura)
 
 1. `V1__schema.sql` — o modelo de dados conta a história do sistema.
