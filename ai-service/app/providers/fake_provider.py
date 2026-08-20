@@ -46,6 +46,7 @@ class FakeProvider(Provider):
             "gerar-secao": self._secao,
             "validar-afirmacoes": self._validar,
             "resumir-documento": self._resumir,
+            "conversar": self._conversar,
         }
         resultado = despacho[operacao](entrada)
         tamanho = len(system) + len(user)
@@ -221,6 +222,21 @@ class FakeProvider(Provider):
                 nota="" if suportes else "Nenhum fato aprovado cobre esta afirmação (provedor fake).",
             ))
         return schemas.ResultadoValidacao(afirmacoes=afirmacoes[:20])
+
+    def _conversar(self, entrada: dict) -> schemas.ResultadoConversa:
+        contexto = (entrada.get("contexto_tela") or "").strip()
+        trechos = entrada.get("trechos") or []
+        partes = ["[provedor fake — configure um provedor real em Configuração de IA "
+                  "para respostas de verdade]"]
+        if contexto:
+            primeira_linha = contexto.splitlines()[0][:120]
+            partes.append(f"Estou vendo a tela que começa com: “{primeira_linha}”.")
+        if trechos:
+            partes.append(f"Encontrei {len(trechos)} trecho(s) relacionados na sua base "
+                          f"de conhecimento.")
+        partes.append("Lembre: eu não altero dados — mudanças passam pelas telas de "
+                      "fatos, propostas e currículos.")
+        return schemas.ResultadoConversa(resposta=" ".join(partes))
 
     def _resumir(self, entrada: dict) -> schemas.ResultadoResumo:
         texto = entrada.get("texto", "")

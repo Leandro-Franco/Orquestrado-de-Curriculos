@@ -2,6 +2,7 @@ package br.com.curriculos.servico;
 
 import br.com.curriculos.dominio.*;
 import br.com.curriculos.repositorio.*;
+import br.com.curriculos.servico.ia.ContratosIa;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,18 +68,20 @@ public class CurriculoService {
                     .toList();
         }
 
-        // Etapa 2 — estratégia (modelo avançado).
-        Map<String, Object> estrategia = aiClient.executar("gerar-estrategia", Map.of(
+        // Etapa 2 — estratégia (modelo avançado). Guardada como JSONB e reenviada
+        // à IA na redação; o Backend Core não lê seus campos.
+        ContratosIa.Estrategia estrategia = aiClient.executar("gerar-estrategia", Map.of(
                 "analise_vaga", analiseVaga,
                 "compatibilidade", compatibilidade,
                 "fatos", fatosComoPayload(aprovados),
-                "perfil", perfilComoPayload()));
+                "perfil", perfilComoPayload()), ContratosIa.Estrategia.class);
+        Map<String, Object> estrategiaMapa = aiClient.comoMapa(estrategia);
 
         Curriculo curriculo = new Curriculo();
         curriculo.setVagaId(vagaId);
         curriculo.setTitulo(titulo != null && !titulo.isBlank() ? titulo : "Currículo");
         curriculo.setTemplate(template != null ? template : "classico");
-        curriculo.setEstrategia(estrategia);
+        curriculo.setEstrategia(estrategiaMapa);
         curriculo = curriculos.save(curriculo);
 
         // Etapa 3 e 4 — redação e validação factual, seção a seção.
@@ -88,7 +91,7 @@ public class CurriculoService {
             secao.setCurriculoId(curriculo.getId());
             secao.setTipo(tipo);
             secao.setOrdem(ordem++);
-            redigirSecao(secao, estrategia, analiseVaga, aprovados);
+            redigirSecao(secao, estrategiaMapa, analiseVaga, aprovados);
             secoes.save(secao);
         }
 
@@ -134,49 +137,40 @@ public class CurriculoService {
         return secao;
     }
 
-    @SuppressWarnings("unchecked")
     private void redigirSecao(SecaoCurriculo secao, Map<String, Object> estrategia,
                               Map<String, Object> analiseVaga, List<Fato> aprovados) {
-        Map<String, Object> resultado = aiClient.executar("gerar-secao", Map.of(
+        ContratosIa.Secao resultado = aiClient.executar("gerar-secao", Map.of(
                 "tipo_secao", secao.getTipo(),
                 "estrategia", estrategia,
                 "analise_vaga", analiseVaga,
                 "fatos", fatosComoPayload(aprovados),
-                "perfil", perfilComoPayload()));
+                "perfil", perfilComoPayload()), ContratosIa.Secao.class);
 
-        secao.setTitulo((String) resultado.getOrDefault("titulo", secao.getTipo()));
-        secao.setConteudo((String) resultado.getOrDefault("conteudo", ""));
-        List<Long> usados = new ArrayList<>();
-        Object ids = resultado.get("fatos_utilizados");
-        if (ids instanceof List<?> lista) {
-            Set<Long> validos = new HashSet<>();
-            aprovados.forEach(f -> validos.add(f.getId()));
-            for (Object o : lista) {
-                if (o instanceof Number n && validos.contains(n.longValue())) usados.add(n.longValue());
-            }
-        }
-        secao.setFatosUtilizados(usados);
+        secao.setTitulo(resultado.titulo() != null ? resultado.titulo() : secao.getTipo());
+        secao.setConteudo(resultado.conteudo() != null ? resultado.conteudo() : "");
+
+        // A LLM só pode citar fatos que realmente existem (validação de saída).
+        Set<Long> validos = new HashSet<>();
+        aprovados.forEach(f -> validos.add(f.getId()));
+        secao.setFatosUtilizados(resultado.fatosUtilizados().stream()
+                .filter(id -> id != null && validos.contains(id))
+                .toList());
         secao.setAtualizadoEm(OffsetDateTime.now());
 
         // Etapa 4 — validação factual contra a base canônica.
         secao.setAlertasValidacao(validar(secao.getConteudo(), aprovados));
     }
 
-    @SuppressWarnings("unchecked")
     private List<String> validar(String conteudo, List<Fato> aprovados) {
         if (conteudo == null || conteudo.isBlank()) return List.of();
-        Map<String, Object> resultado = aiClient.executar("validar-afirmacoes",
-                Map.of("conteudo", conteudo, "fatos", fatosComoPayload(aprovados)));
-        List<Map<String, Object>> afirmacoes =
-                (List<Map<String, Object>>) resultado.getOrDefault("afirmacoes", List.of());
-        List<String> alertas = new ArrayList<>();
-        for (Map<String, Object> a : afirmacoes) {
-            if (Boolean.FALSE.equals(a.get("sustentada"))) {
-                alertas.add("Sem suporte na base: \"" + a.get("texto") + "\""
-                        + (a.get("nota") != null ? " — " + a.get("nota") : ""));
-            }
-        }
-        return alertas;
+        ContratosIa.Validacao resultado = aiClient.executar("validar-afirmacoes",
+                Map.of("conteudo", conteudo, "fatos", fatosComoPayload(aprovados)),
+                ContratosIa.Validacao.class);
+        return resultado.afirmacoes().stream()
+                .filter(ContratosIa.Afirmacao::naoSustentada)
+                .map(a -> "Sem suporte na base: \"" + a.texto() + "\""
+                        + (a.nota() != null && !a.nota().isBlank() ? " — " + a.nota() : ""))
+                .toList();
     }
 
     @Transactional

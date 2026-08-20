@@ -48,4 +48,9 @@ public class VagaController {
     public List<RequisitoVaga> requisitos(@PathVariable Long id) {
         return requisitos.findByVagaIdOrderByIdAsc(id);
     }
+
+    @DeleteMapping("/{id}")
+    public void remover(@PathVariable Long id) {
+        vagas.delete(vagaService.buscar(id)); // requisitos caem em cascata
+    }
 }

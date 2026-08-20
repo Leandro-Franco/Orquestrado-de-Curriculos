@@ -22,6 +22,9 @@
     <playwright.version>1.49.0</playwright.version>
     <!-- Sobrescreve o 1.18.36 do parent: necessário para compilar com JDK 24/25 locais. -->
     <lombok.version>1.18.46</lombok.version>
+    <!-- Mockito/ByteBuddy gerenciados pelo parent não instrumentam no JDK 25. -->
+    <mockito.version>5.20.0</mockito.version>
+    <byte-buddy.version>1.17.8</byte-buddy.version>
   </properties>
 
   <dependencies>

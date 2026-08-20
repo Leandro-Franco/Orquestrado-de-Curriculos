@@ -559,7 +559,9 @@ O sistema deverá proteger-se contra:
 * exportação em PDF;
 * versionamento;
 * auditoria;
-* métricas básicas da IA.
+* métricas básicas da IA;
+* configuração do provedor de IA pela interface (Anthropic, OpenAI, Grok, Ollama/Llama e APIs compatíveis — ADR-004);
+* chat contextual somente-leitura, fixo em todas as telas (ADR-004).
 
 ### Fora do MVP
 
@@ -651,8 +653,9 @@ Ao propor uma solução:
 * O RAG será uma camada de recuperação, não de conservação da verdade.
 * A LLM não poderá escrever diretamente na base oficial.
 * Toda atualização deverá passar por aprovação.
-* O provedor da LLM deverá ser substituível.
-* As chaves de API ficarão somente no backend.
+* O provedor da LLM deverá ser substituível — configurável pela interface (ADR-004): Anthropic, OpenAI, Grok, Ollama/Llama e qualquer API compatível com OpenAI.
+* As chaves de API ficarão somente no backend — o frontend envia a chave uma única vez e recebe de volta apenas a forma mascarada.
+* O chat contextual é somente leitura: não altera a base; toda escrita continua exigindo os fluxos com aprovação humana (ADR-004).
 * O harness terá operações restritas.
 * O histórico de conversas não será utilizado como memória oficial.
 * Currículos serão gerados somente com fatos aprovados.

@@ -1,9 +1,11 @@
-"""Configuração do serviço de IA — tudo por variável de ambiente.
+"""Configuração do serviço de IA — padrões por variável de ambiente,
+com sobreposição por requisição via cabeçalhos X-AI-* (ADR-004).
 
 O provedor da LLM é substituível (Contexto Mestre, seção 17) e os
 segredos vivem apenas no backend; nada de chaves no frontend.
 """
 import os
+from dataclasses import dataclass, field
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql://curriculos:curriculos@localhost:5433/curriculos"
@@ -31,3 +33,16 @@ PRECOS_POR_MTOK = {
 
 VERSAO_PROMPT = "v1"
 MAX_TENTATIVAS = 2
+
+
+@dataclass(frozen=True)
+class RuntimeConfig:
+    """Configuração vinda do Backend Core em cada requisição (cabeçalhos X-AI-*).
+    Campos vazios caem nos padrões de ambiente."""
+    provider: str = ""
+    api_key: str = ""
+    base_url: str = ""
+    modelos: dict = field(default_factory=dict)  # nivel -> modelo
+
+    def modelo_para(self, nivel: str) -> str:
+        return self.modelos.get(nivel) or MODELOS[nivel]

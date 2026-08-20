@@ -2,6 +2,7 @@ package br.com.curriculos.servico;
 
 import br.com.curriculos.dominio.*;
 import br.com.curriculos.repositorio.*;
+import br.com.curriculos.servico.ia.ContratosIa;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,9 @@ import java.util.*;
  */
 @Service
 public class VagaService {
+
+    private static final Set<String> NIVEIS_VALIDOS =
+            Set.of("ALTA", "MEDIA", "PARCIAL", "AUSENTE", "INCONCLUSIVA");
 
     private final VagaRepository vagas;
     private final RequisitoVagaRepository requisitos;
@@ -42,26 +46,25 @@ public class VagaService {
         return vagas.save(vaga);
     }
 
-    @SuppressWarnings("unchecked")
     @Transactional
     public Vaga analisar(Long vagaId) {
         Vaga vaga = buscar(vagaId);
 
         // Etapa 1 — extração estruturada da descrição (modelo intermediário).
-        Map<String, Object> analise = aiClient.executar("analisar-vaga",
-                Map.of("descricao", vaga.getDescricaoBruta()));
-        vaga.setAnalise(analise);
+        ContratosIa.AnaliseVaga analise = aiClient.executar("analisar-vaga",
+                Map.of("descricao", vaga.getDescricaoBruta()), ContratosIa.AnaliseVaga.class);
+        vaga.setAnalise(aiClient.comoMapa(analise));
         if (vaga.getTitulo() == null || vaga.getTitulo().isBlank()) {
-            vaga.setTitulo((String) analise.get("titulo"));
+            vaga.setTitulo(analise.titulo());
         }
         if (vaga.getEmpresa() == null || vaga.getEmpresa().isBlank()) {
-            vaga.setEmpresa((String) analise.get("empresa"));
+            vaga.setEmpresa(analise.empresa());
         }
 
         requisitos.deleteByVagaId(vagaId);
         List<RequisitoVaga> novos = new ArrayList<>();
-        novos.addAll(criarRequisitos(vagaId, (List<Map<String, Object>>) analise.get("requisitos_obrigatorios"), "OBRIGATORIO"));
-        novos.addAll(criarRequisitos(vagaId, (List<Map<String, Object>>) analise.get("requisitos_desejaveis"), "DESEJAVEL"));
+        novos.addAll(criarRequisitos(vagaId, analise.requisitosObrigatorios(), "OBRIGATORIO"));
+        novos.addAll(criarRequisitos(vagaId, analise.requisitosDesejaveis(), "DESEJAVEL"));
         novos = requisitos.saveAll(novos);
 
         // Etapa 2 — relacionar cada requisito às evidências aprovadas (modelo econômico).
@@ -80,23 +83,22 @@ public class VagaService {
         return vaga;
     }
 
-    private List<RequisitoVaga> criarRequisitos(Long vagaId, List<Map<String, Object>> itens, String tipo) {
-        if (itens == null) return List.of();
+    private List<RequisitoVaga> criarRequisitos(Long vagaId,
+                                                List<ContratosIa.RequisitoExtraido> itens,
+                                                String tipo) {
         List<RequisitoVaga> lista = new ArrayList<>();
-        for (Map<String, Object> item : itens) {
-            String descricao = (String) item.get("descricao");
-            if (descricao == null || descricao.isBlank()) continue;
+        for (ContratosIa.RequisitoExtraido item : itens) {
+            if (item.descricao() == null || item.descricao().isBlank()) continue;
             RequisitoVaga r = new RequisitoVaga();
             r.setVagaId(vagaId);
-            r.setDescricao(descricao);
+            r.setDescricao(item.descricao());
             r.setTipo(tipo);
-            r.setCategoria((String) item.get("categoria"));
+            r.setCategoria(item.categoria());
             lista.add(r);
         }
         return lista;
     }
 
-    @SuppressWarnings("unchecked")
     private void relacionar(List<RequisitoVaga> novos, List<Fato> aprovados) {
         List<Map<String, Object>> reqPayload = novos.stream()
                 .map(r -> Map.<String, Object>of("id", r.getId(), "descricao", r.getDescricao(), "tipo", r.getTipo()))
@@ -105,39 +107,31 @@ public class VagaService {
                 .map(f -> Map.<String, Object>of("id", f.getId(), "tipo", f.getTipo(), "payload", f.getPayload()))
                 .toList();
 
-        Map<String, Object> resultado = aiClient.executar("relacionar-requisitos",
-                Map.of("requisitos", reqPayload, "fatos", fatosPayload));
-        List<Map<String, Object>> relacoes =
-                (List<Map<String, Object>>) resultado.getOrDefault("relacoes", List.of());
+        ContratosIa.Relacionamento resultado = aiClient.executar("relacionar-requisitos",
+                Map.of("requisitos", reqPayload, "fatos", fatosPayload),
+                ContratosIa.Relacionamento.class);
 
-        Map<Long, Map<String, Object>> porRequisito = new HashMap<>();
-        for (Map<String, Object> rel : relacoes) {
-            Object id = rel.get("requisito_id");
-            if (id instanceof Number n) porRequisito.put(n.longValue(), rel);
+        Map<Long, ContratosIa.Relacao> porRequisito = new HashMap<>();
+        for (ContratosIa.Relacao rel : resultado.relacoes()) {
+            if (rel.requisitoId() != null) porRequisito.put(rel.requisitoId(), rel);
         }
-        Set<String> niveisValidos = Set.of("ALTA", "MEDIA", "PARCIAL", "AUSENTE", "INCONCLUSIVA");
         Set<Long> idsValidos = new HashSet<>();
         aprovados.forEach(f -> idsValidos.add(f.getId()));
 
         for (RequisitoVaga r : novos) {
-            Map<String, Object> rel = porRequisito.get(r.getId());
+            ContratosIa.Relacao rel = porRequisito.get(r.getId());
             if (rel == null) {
                 r.setCompatibilidade("INCONCLUSIVA");
                 continue;
             }
-            String nivel = String.valueOf(rel.get("compatibilidade")).toUpperCase();
-            r.setCompatibilidade(niveisValidos.contains(nivel) ? nivel : "INCONCLUSIVA");
-            r.setJustificativa((String) rel.get("justificativa"));
-            List<Long> relacionados = new ArrayList<>();
-            Object fatosRel = rel.get("fatos");
-            if (fatosRel instanceof List<?> lista) {
-                for (Object o : lista) {
-                    // A LLM só pode citar fatos que realmente existem (validação de saída).
-                    if (o instanceof Number n && idsValidos.contains(n.longValue())) {
-                        relacionados.add(n.longValue());
-                    }
-                }
-            }
+            String nivel = rel.compatibilidade() == null ? "" : rel.compatibilidade().toUpperCase();
+            r.setCompatibilidade(NIVEIS_VALIDOS.contains(nivel) ? nivel : "INCONCLUSIVA");
+            r.setJustificativa(rel.justificativa());
+
+            // A LLM só pode citar fatos que realmente existem (validação de saída).
+            List<Long> relacionados = rel.fatos().stream()
+                    .filter(id -> id != null && idsValidos.contains(id))
+                    .toList();
             r.setFatosRelacionados(relacionados);
             if (relacionados.isEmpty() && !"AUSENTE".equals(r.getCompatibilidade())) {
                 r.setCompatibilidade("INCONCLUSIVA");

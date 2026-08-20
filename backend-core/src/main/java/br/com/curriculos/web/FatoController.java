@@ -31,19 +31,18 @@ public class FatoController {
                 : fatos.findByTipoAndStatus(tipo, "APROVADO");
     }
 
+    /** Corpo de criação/edição de fato: o payload varia por tipo (ADR-002). */
+    public record FatoRequisicao(String tipo, Map<String, Object> payload) {
+    }
+
     @PostMapping
-    public Fato criar(@RequestBody Map<String, Object> corpo) {
-        String tipo = (String) corpo.get("tipo");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> payload = (Map<String, Object>) corpo.get("payload");
-        return fatoService.criar(tipo, payload);
+    public Fato criar(@RequestBody FatoRequisicao corpo) {
+        return fatoService.criar(corpo.tipo(), corpo.payload());
     }
 
     @PutMapping("/{id}")
-    public Fato atualizar(@PathVariable Long id, @RequestBody Map<String, Object> corpo) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> payload = (Map<String, Object>) corpo.get("payload");
-        return fatoService.atualizar(id, payload);
+    public Fato atualizar(@PathVariable Long id, @RequestBody FatoRequisicao corpo) {
+        return fatoService.atualizar(id, corpo.payload());
     }
 
     @DeleteMapping("/{id}")

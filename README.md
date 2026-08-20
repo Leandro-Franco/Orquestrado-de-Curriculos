@@ -204,6 +204,32 @@ curl http://localhost:8080/api/metricas/ia
 6. **Currículos** — gere um currículo direcionado (estratégia → seções → validação factual), edite/regenere seção a seção, veja o preview e exporte o **PDF A4**.
 7. **Métricas de IA** — tokens, custo estimado e duração de cada chamada.
 
+## Testes
+
+```bash
+make test-contratos # alinhamento schemas.py <-> ContratosIa.java (rápido, sem dependências)
+make test-backend   # unitários do Backend Core (JUnit + Mockito; não precisam de docker)
+make test-ia        # testes do serviço de IA (pytest dentro da imagem; provedor fake)
+make test-e2e       # ponta a ponta contra a pilha local (exige docker compose up)
+make test           # todos
+```
+
+Use `sudo make test-ia` se seu usuário não estiver no grupo docker.
+
+- **Contratos** (`scripts/verificar_contratos.py`): compara campo a campo os schemas Pydantic
+  do serviço de IA com os records Java que os consomem — se um lado evoluir sem o outro, falha
+  antes de chegar em produção (ADR-005).
+- **Backend** (`backend-core/src/test/java/...`): validação por tipo de fato, o ciclo
+  proposta→aprovação→fato+evidência, rejeição, dedupe por SHA-256, saneamento da saída
+  da LLM na análise de vagas (nível inválido e ID de fato inexistente são descartados),
+  desserialização dos contratos em snake_case e as guardas da geração de currículo.
+- **Serviço de IA** (`ai-service/tests/`): registro fechado de operações (404 fora dele),
+  envelope `result`+`usage`, carimbo de modelo/versão de prompt nas propostas, custo
+  estimado, embedding determinístico e fatiamento do RAG.
+- **E2E** (`scripts/teste_e2e.py`): importa documento → aprova proposta → analisa vaga →
+  gera currículo → exporta PDF de 1 página e de conteúdo excessivo (2+ páginas — a PoC de
+  renderização da seção 12) → confere versões e métricas. **Remove tudo que criou** ao final.
+
 ## Garantias de confiabilidade implementadas
 
 | Regra (Contexto Mestre) | Onde está no código |
@@ -217,6 +243,19 @@ curl http://localhost:8080/api/metricas/ia
 | Validação factual pós-redação | `CurriculoService.validar` → alertas na UI |
 | Métricas por chamada | envelope `usage` → tabela `chamada_ia` |
 | Preview = PDF | `RenderizacaoService` + `curriculo-a4.html` |
+| Contrato validado nas duas pontas | `schemas.py` (Pydantic) ↔ `ContratosIa.java` (records) |
+
+## Por que não Spring AI?
+
+O [Spring AI](https://spring.io/blog/2025/05/20/spring-ai-1-0-GA-released/) resolveria — em Java —
+os mesmos problemas que o serviço Python já resolve: multiprovedor, saída estruturada e RAG sobre
+pgvector. Adotá-lo significaria duplicar o harness ou reverter a decisão de isolar a orquestração
+de IA em um serviço próprio (Contexto Mestre, seção 17), que é justamente a fronteira que mantém a
+LLM longe da base canônica.
+
+O que foi adotado é o **princípio** que o Spring AI defende no lado Java: respostas de IA como
+objetos tipados em vez de `Map<String, Object>`. Ver [ADR-005](docs/adr/ADR-005-avaliacao-spring-ai.md)
+para a análise completa e para as condições em que a decisão deve ser revista.
 
 ## Limitações conhecidas (documentadas como evolução)
 

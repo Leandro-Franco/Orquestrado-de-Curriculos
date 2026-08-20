@@ -111,3 +111,7 @@ class ResultadoValidacao(BaseModel):
 
 class ResultadoResumo(BaseModel):
     resumo: str = ""
+
+
+class ResultadoConversa(BaseModel):
+    resposta: str = ""

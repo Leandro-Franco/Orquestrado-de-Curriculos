@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import ChatWidget from "./components/ChatWidget";
+import ConfiguracaoIa from "./pages/ConfiguracaoIa";
 import Conhecimento from "./pages/Conhecimento";
 import CurriculoEditor from "./pages/CurriculoEditor";
 import Curriculos from "./pages/Curriculos";
@@ -18,6 +20,7 @@ const LINKS = [
   ["/vagas", "Vagas"],
   ["/curriculos", "Currículos"],
   ["/metricas", "Métricas de IA"],
+  ["/configuracao-ia", "Configuração de IA"],
 ] as const;
 
 type Tema = "claro" | "escuro";
@@ -61,8 +64,10 @@ export default function App() {
           <Route path="/curriculos" element={<Curriculos />} />
           <Route path="/curriculos/:id" element={<CurriculoEditor />} />
           <Route path="/metricas" element={<Metricas />} />
+          <Route path="/configuracao-ia" element={<ConfiguracaoIa />} />
         </Routes>
       </main>
+      <ChatWidget />
     </div>
   );
 }

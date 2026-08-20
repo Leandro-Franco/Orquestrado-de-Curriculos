@@ -8,6 +8,7 @@ import br.com.curriculos.repositorio.DocumentoRepository;
 import br.com.curriculos.repositorio.EventoAuditoriaRepository;
 import br.com.curriculos.repositorio.FatoRepository;
 import br.com.curriculos.repositorio.PropostaRepository;
+import br.com.curriculos.servico.ia.ContratosIa;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -115,47 +116,40 @@ public class DocumentoService {
         return Map.of("documentoId", doc.getId(), "propostasGeradas", criadas.size());
     }
 
-    @SuppressWarnings("unchecked")
     private List<Proposta> extrairPropostas(Documento doc) {
         List<Fato> existentes = fatos.findByStatusOrderByTipoAsc("APROVADO");
         List<Map<String, Object>> fatosExistentes = existentes.stream()
                 .map(f -> Map.<String, Object>of("id", f.getId(), "tipo", f.getTipo(), "payload", f.getPayload()))
                 .toList();
 
-        Map<String, Object> resultado = aiClient.executar("extrair-conhecimento", Map.of(
+        ContratosIa.Extracao resultado = aiClient.executar("extrair-conhecimento", Map.of(
                 "documento_id", doc.getId(),
                 "texto", doc.getTextoExtraido(),
-                "fatos_existentes", fatosExistentes));
-
-        List<Map<String, Object>> extraidas =
-                (List<Map<String, Object>>) resultado.getOrDefault("propostas", List.of());
+                "fatos_existentes", fatosExistentes), ContratosIa.Extracao.class);
 
         List<Proposta> criadas = new ArrayList<>();
-        for (Map<String, Object> p : extraidas) {
-            Map<String, Object> payload = (Map<String, Object>) p.get("payload");
-            String tipo = (String) p.get("tipo_fato");
-            if (payload == null || tipo == null) continue;
+        for (ContratosIa.PropostaExtraida p : resultado.propostas()) {
+            if (p.tipoFato() == null || p.payload().isEmpty()) continue;
             // Duplicidade exata é descartada deterministicamente, sem consumir IA.
             boolean duplicada = existentes.stream()
-                    .anyMatch(f -> f.getTipo().equals(tipo) && f.getPayload().equals(payload));
+                    .anyMatch(f -> f.getTipo().equals(p.tipoFato()) && f.getPayload().equals(p.payload()));
             if (duplicada) continue;
 
             Proposta proposta = new Proposta();
-            proposta.setAcao((String) p.getOrDefault("acao", "CRIAR"));
-            proposta.setTipoFato(tipo);
-            proposta.setPayloadProposto(payload);
+            proposta.setAcao(p.acao());
+            proposta.setTipoFato(p.tipoFato());
+            proposta.setPayloadProposto(p.payload());
             proposta.setDocumentoOrigemId(doc.getId());
-            proposta.setJustificativa((String) p.get("justificativa"));
-            proposta.setTrechoEvidencia((String) p.get("trecho_evidencia"));
-            proposta.setModelo((String) p.get("modelo"));
-            proposta.setVersaoPrompt((String) p.get("versao_prompt"));
-            Object confianca = p.get("confianca");
-            if (confianca instanceof Number n) {
-                proposta.setConfianca(BigDecimal.valueOf(Math.min(1.0, Math.max(0.0, n.doubleValue()))));
+            proposta.setJustificativa(p.justificativa());
+            proposta.setTrechoEvidencia(p.trechoEvidencia());
+            proposta.setModelo(p.modelo());
+            proposta.setVersaoPrompt(p.versaoPrompt());
+            if (p.confianca() != null) {
+                proposta.setConfianca(BigDecimal.valueOf(
+                        Math.min(1.0, Math.max(0.0, p.confianca()))));
             }
-            Object alvo = p.get("fato_alvo_id");
-            if (alvo instanceof Number n && "ATUALIZAR".equals(proposta.getAcao())) {
-                fatos.findById(n.longValue()).ifPresent(f -> {
+            if (p.fatoAlvoId() != null && "ATUALIZAR".equals(p.acao())) {
+                fatos.findById(p.fatoAlvoId()).ifPresent(f -> {
                     proposta.setFatoAlvoId(f.getId());
                     proposta.setPayloadAnterior(f.getPayload());
                 });
@@ -163,6 +157,26 @@ public class DocumentoService {
             criadas.add(propostas.save(proposta));
         }
         return criadas;
+    }
+
+    @Transactional
+    public void remover(Long id) {
+        Documento doc = documentos.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Documento não encontrado: " + id));
+        if (doc.getCaminhoArmazenamento() != null) {
+            try {
+                Files.deleteIfExists(Path.of(doc.getCaminhoArmazenamento()));
+            } catch (Exception e) {
+                // arquivo órfão não impede a remoção do registro
+            }
+        }
+        try {
+            aiClient.removerIndice("DOCUMENTO", id);
+        } catch (Exception e) {
+            // índice é derivado
+        }
+        documentos.delete(doc);
+        auditoria.save(EventoAuditoria.de("documento", id, "REMOVIDO", Map.of("titulo", doc.getTitulo())));
     }
 
     private String extrairTexto(String nome, String mime, byte[] bytes) throws Exception {

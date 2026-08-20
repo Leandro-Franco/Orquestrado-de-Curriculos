@@ -12,10 +12,11 @@ from app.providers.base import Provider, Uso
 
 class AnthropicProvider(Provider):
 
-    def __init__(self) -> None:
-        if not config.ANTHROPIC_API_KEY:
-            raise RuntimeError("AI_PROVIDER=anthropic exige ANTHROPIC_API_KEY")
-        self._client = Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    def __init__(self, api_key: str = "") -> None:
+        chave = api_key or config.ANTHROPIC_API_KEY
+        if not chave:
+            raise RuntimeError("Provedor anthropic exige uma chave de API")
+        self._client = Anthropic(api_key=chave)
 
     def gerar(self, operacao: str, entrada: dict, system: str, user: str,
               schema: type[BaseModel], modelo: str, max_tokens: int) -> tuple[BaseModel, Uso]:
