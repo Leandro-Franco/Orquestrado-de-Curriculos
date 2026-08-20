@@ -169,6 +169,78 @@ iframe.preview {
   background: #fff;
 }
 
+/* --- Chat fixo (ADR-004) --- */
+.chat-botao {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  font-size: 22px;
+  padding: 0;
+  margin: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  z-index: 50;
+}
+
+.chat-painel {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 360px;
+  max-width: calc(100vw - 40px);
+  height: 480px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  z-index: 50;
+}
+
+.chat-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--borda);
+}
+.chat-cabecalho span { font-size: 11px; color: var(--tinta-suave); flex: 1; }
+.chat-cabecalho button { margin: 0; padding: 2px 8px; }
+
+.chat-mensagens {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chat-vazio { font-size: 13px; color: var(--tinta-suave); }
+
+.chat-mensagem {
+  max-width: 85%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  white-space: pre-wrap;
+}
+.chat-mensagem.usuario { align-self: flex-end; background: var(--acento); color: #fff; }
+.chat-mensagem.assistente { align-self: flex-start; background: var(--fundo); }
+
+.chat-entrada {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--borda);
+}
+.chat-entrada input { flex: 1; }
+.chat-entrada button { margin: 0; }
+
 @media (max-width: 760px) {
   .layout { flex-direction: column; }
   nav.menu { width: 100%; display: flex; flex-wrap: wrap; }
