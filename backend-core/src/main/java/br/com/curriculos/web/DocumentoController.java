@@ -46,4 +46,9 @@ public class DocumentoController {
                 : arquivo.getOriginalFilename() != null ? arquivo.getOriginalFilename() : "Arquivo importado";
         return documentoService.importarArquivo(nome, arquivo);
     }
+
+    @DeleteMapping("/{id}")
+    public void remover(@PathVariable Long id) {
+        documentoService.remover(id);
+    }
 }

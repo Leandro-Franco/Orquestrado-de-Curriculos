@@ -118,6 +118,27 @@ def validar_afirmacoes(entrada: dict) -> tuple[str, str]:
     return system, user
 
 
+def conversar(entrada: dict) -> tuple[str, str]:
+    system = (
+        "Você é o assistente do Gerador Inteligente de Currículos. Responda em português, "
+        "de forma curta e útil, sobre o que o usuário está vendo na tela e sobre a base de "
+        "conhecimento dele. Você é SOMENTE LEITURA: não altera fatos, propostas, vagas nem "
+        "currículos; quando o usuário pedir uma mudança, explique em qual tela ele mesmo a "
+        "executa (toda escrita exige ação humana). " + REGRAS_FACTUAIS
+    )
+    historico = entrada.get("historico", []) or []
+    linhas = "\n".join(
+        f"{m.get('papel', 'usuario')}: {m.get('texto', '')}"
+        for m in historico if isinstance(m, dict))
+    user = (
+        f"Conteúdo visível na tela agora:\n{_dado(entrada.get('contexto_tela', ''))}\n\n"
+        f"Trechos relevantes da base de conhecimento:\n{_dado(_json(entrada.get('trechos', [])))}\n\n"
+        f"Conversa recente:\n{linhas or '(início da conversa)'}\n\n"
+        f"Mensagem do usuário:\n{_dado(entrada.get('mensagem', ''))}"
+    )
+    return system, user
+
+
 def resumir_documento(entrada: dict) -> tuple[str, str]:
     system = (
         "Você resume documentos profissionais em um parágrafo fiel, sem acrescentar "

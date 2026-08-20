@@ -82,6 +82,11 @@ public class CurriculoController {
         return renderizacao.renderizarHtml(id);
     }
 
+    @DeleteMapping("/{id}")
+    public void remover(@PathVariable Long id) {
+        curriculos.delete(curriculoService.buscar(id)); // seções e versões caem em cascata
+    }
+
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> pdf(@PathVariable Long id) {
         byte[] pdf = renderizacao.gerarPdf(id);

@@ -51,6 +51,8 @@ OPERACOES: dict[str, Operacao] = {
                                    schemas.ResultadoValidacao, 4096),
     "resumir-documento": Operacao("ECONOMICO", prompts.resumir_documento,
                                   schemas.ResultadoResumo, 1024),
+    "conversar": Operacao("INTERMEDIARIO", prompts.conversar,
+                          schemas.ResultadoConversa, 1024),
 }
 
 
@@ -64,14 +66,14 @@ def _custo_estimado(modelo: str, tokens_entrada: int, tokens_saida: int) -> floa
     return 0.0
 
 
-def executar(nome: str, entrada: dict) -> dict:
+def executar(nome: str, entrada: dict, cfg: config.RuntimeConfig | None = None) -> dict:
     op = OPERACOES.get(nome)
     if op is None:
         raise KeyError(nome)
 
     system, user = op.prompt(entrada)
-    modelo = config.MODELOS[op.nivel]
-    provider = obter_provider()
+    modelo = cfg.modelo_para(op.nivel) if cfg else config.MODELOS[op.nivel]
+    provider = obter_provider(cfg)
 
     inicio = time.monotonic()
     ultimo_erro: Exception | None = None
